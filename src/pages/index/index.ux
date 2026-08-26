@@ -1,54 +1,53 @@
 <template>
   <!-- Full-screen scoreboard. Gestures are bound to the root. -->
   <div class="page" onswipe="onSwipe" onlongpress="onRestart">
+    <div class="board" if="{{ !editing && !confirming && !showWinner }}">
+      <!-- Player B (top, orange) -->
+      <div class="zone zoneB">
+        <text class="score scoreB" onclick="onEditB">{{ scoreB }}</text>
+      </div>
 
-    <div class="board" if="{{ !editing }}">
-    <!-- Player B (top, orange) -->
-    <div class="zone zoneB">
-      <text class="score scoreB" onclick="onEditB">{{ scoreB }}</text>
-    </div>
-
-    <!-- Badminton court: dot = server's service court, ring = receiver's -->
-    <div class="court">
-      <div class="courtRow">
-        <div class="cell cellLeft {{ courtDots.TL }}">
-          <div class="dot dotA" if="{{ courtDots.TL === 'sa' }}"></div>
-          <div class="dot dotB" if="{{ courtDots.TL === 'sb' }}"></div>
-          <div class="ring" if="{{ courtDots.TL === 'r' }}"></div>
+      <!-- Badminton court: dot = server's service court, ring = receiver's -->
+      <div class="court">
+        <div class="courtRow">
+          <div class="cell cellLeft {{ courtDots.TL }}">
+            <div class="dot dotA" if="{{ courtDots.TL === 'sa' }}"></div>
+            <div class="dot dotB" if="{{ courtDots.TL === 'sb' }}"></div>
+            <div class="ring" if="{{ courtDots.TL === 'r' }}"></div>
+          </div>
+          <div class="cell cellRight {{ courtDots.TR }}">
+            <div class="dot dotA" if="{{ courtDots.TR === 'sa' }}"></div>
+            <div class="dot dotB" if="{{ courtDots.TR === 'sb' }}"></div>
+            <div class="ring" if="{{ courtDots.TR === 'r' }}"></div>
+          </div>
         </div>
-        <div class="cell cellRight {{ courtDots.TR }}">
-          <div class="dot dotA" if="{{ courtDots.TR === 'sa' }}"></div>
-          <div class="dot dotB" if="{{ courtDots.TR === 'sb' }}"></div>
-          <div class="ring" if="{{ courtDots.TR === 'r' }}"></div>
+        <div class="net">
+          <text class="netTime">{{ time }}</text>
+        </div>
+        <div class="courtRow">
+          <div class="cell cellLeft {{ courtDots.BL }}">
+            <div class="dot dotA" if="{{ courtDots.BL === 'sa' }}"></div>
+            <div class="dot dotB" if="{{ courtDots.BL === 'sb' }}"></div>
+            <div class="ring" if="{{ courtDots.BL === 'r' }}"></div>
+          </div>
+          <div class="cell cellRight {{ courtDots.BR }}">
+            <div class="dot dotA" if="{{ courtDots.BR === 'sa' }}"></div>
+            <div class="dot dotB" if="{{ courtDots.BR === 'sb' }}"></div>
+            <div class="ring" if="{{ courtDots.BR === 'r' }}"></div>
+          </div>
         </div>
       </div>
-      <div class="net">
-        <text class="netTime">{{ time }}</text>
-      </div>
-      <div class="courtRow">
-        <div class="cell cellLeft {{ courtDots.BL }}">
-          <div class="dot dotA" if="{{ courtDots.BL === 'sa' }}"></div>
-          <div class="dot dotB" if="{{ courtDots.BL === 'sb' }}"></div>
-          <div class="ring" if="{{ courtDots.BL === 'r' }}"></div>
-        </div>
-        <div class="cell cellRight {{ courtDots.BR }}">
-          <div class="dot dotA" if="{{ courtDots.BR === 'sa' }}"></div>
-          <div class="dot dotB" if="{{ courtDots.BR === 'sb' }}"></div>
-          <div class="ring" if="{{ courtDots.BR === 'r' }}"></div>
-        </div>
-      </div>
-    </div>
 
-    <!-- Player A (bottom, blue) -->
-    <div class="zone zoneA">
-      <text class="score scoreA" onclick="onEditA">{{ scoreA }}</text>
-    </div>
+      <!-- Player A (bottom, blue) -->
+      <div class="zone zoneA">
+        <text class="score scoreA" onclick="onEditA">{{ scoreA }}</text>
+      </div>
     </div>
 
     <!-- Hint strip (doubles as game-point / winner status line) -->
-    <div class="hint" if="{{ !editing }}">
-      <text class="hintText {{ statusClass }}" if="{{ winner || gamePoint }}">{{ statusText }}</text>
-      <text class="hintText" if="{{ !winner && !gamePoint }}">up B+ · down A+ · left undo · hold reset</text>
+    <div class="hint" if="{{ !editing && !confirming && !showWinner }}">
+      <text class="hintText {{ statusClass }}" if="{{ gamePoint }}">{{ statusText }}</text>
+      <text class="hintText" if="{{ !gamePoint }}">up B+ · down A+ · left undo · hold reset</text>
     </div>
 
     <!-- Edit overlay -->
@@ -56,12 +55,29 @@
       <text class="ovTitle">Edit {{ editing }}</text>
       <div class="ovRow">
         <text class="ovBtn" onclick="onDec">-</text>
-        <text class="ovVal">{{ editing === 'A' ? scoreA : scoreB }}</text>
+        <text class="ovVal">{{ editing === "A" ? scoreA : scoreB }}</text>
         <text class="ovBtn" onclick="onInc">+</text>
       </div>
       <text class="ovDone" onclick="onDone">Done</text>
     </div>
 
+    <!-- Reset confirm overlay -->
+    <div class="overlay" if="{{ confirming }}">
+      <text class="ovTitle">Reset game?</text>
+      <text class="ovSub">{{ scoreB }} - {{ scoreA }}</text>
+      <div class="ovRow">
+        <text class="ovCancel" onclick="onCancelReset">Cancel</text>
+        <text class="ovDanger" onclick="onConfirmReset">Reset</text>
+      </div>
+    </div>
+
+    <!-- Winner overlay -->
+    <div class="overlay" if="{{ showWinner }}">
+      <text class="winTitle {{ statusClass }}">★ {{ winner }} WINS</text>
+      <text class="winScore">{{ winScore }}</text>
+      <text class="ovDone" onclick="onNewGame">New Game</text>
+      <text class="winBack" onclick="onDismissWinner">back</text>
+    </div>
   </div>
 </template>
 
@@ -72,6 +88,8 @@ export default {
     scoreB: 0,
     server: "A", // who serves: 'A' or 'B'
     editing: "", // '' | 'A' | 'B'
+    confirming: false, // reset-confirm overlay is up
+    winnerDismissed: false, // user dismissed the winner overlay to fix a score
     history: [],
     time: "",
     timer: 0
@@ -86,7 +104,7 @@ export default {
     courtDots() {
       // Per-box code: '' | 'sa' (A serves here, blue dot) | 'sb' (B serves
       // here, orange dot) | 'r' (receiver, ring).
-      const boxes = { TL: "", TR: "", BL: "", BR: "" }
+      const boxes = {TL: "", TR: "", BL: "", BR: ""}
       // Fresh game (0-0): either side may serve first, so mark both possible
       // service courts. A would serve from BR (even), B from TL (even).
       if (this.scoreA === 0 && this.scoreB === 0) {
@@ -100,7 +118,7 @@ export default {
       } else {
         serverBox = this.scoreB % 2 === 0 ? "TL" : "TR"
       }
-      const diag = { TL: "BR", BR: "TL", TR: "BL", BL: "TR" }
+      const diag = {TL: "BR", BR: "TL", TR: "BL", BL: "TR"}
       boxes[serverBox] = this.server === "A" ? "sa" : "sb"
       boxes[diag[serverBox]] = "r"
       return boxes
@@ -138,13 +156,24 @@ export default {
       return ""
     },
 
-    // Status line shown in the hint strip during game point / after a win.
-    statusText() {
-      if (this.winner) {
-        const w = this.winner === "A" ? this.scoreA : this.scoreB
-        const l = this.winner === "A" ? this.scoreB : this.scoreA
-        return "★ " + this.winner + " WINS  " + w + "-" + l
+    // Winner overlay is up: someone has won and the user hasn't dismissed it
+    // (dismissing lets them undo/edit a mis-scored final point).
+    showWinner() {
+      return !!this.winner && !this.winnerDismissed && !this.editing && !this.confirming
+    },
+
+    // Final score, winner's points first.
+    winScore() {
+      if (!this.winner) {
+        return ""
       }
+      const w = this.winner === "A" ? this.scoreA : this.scoreB
+      const l = this.winner === "A" ? this.scoreB : this.scoreA
+      return w + " - " + l
+    },
+
+    // Status line shown in the hint strip during game point.
+    statusText() {
       if (this.gamePoint === "AB") {
         return "● GAME POINT"
       }
@@ -224,10 +253,22 @@ export default {
     this.scoreA = prev.scoreA
     this.scoreB = prev.scoreB
     this.server = prev.server
+    // Back in a playable state — allow the winner overlay to show again.
+    this.winnerDismissed = false
+  },
+
+  // Clear the score for a fresh game.
+  resetGame() {
+    this.pushHistory()
+    this.scoreA = 0
+    this.scoreB = 0
+    this.server = "A"
+    this.winnerDismissed = false
   },
 
   onSwipe(e) {
-    if (this.editing) {
+    // Any overlay is up — gestures are ignored.
+    if (this.editing || this.confirming || this.showWinner) {
       return
     }
     const d = e.direction
@@ -241,13 +282,28 @@ export default {
   },
 
   onRestart() {
-    if (this.editing) {
+    if (this.editing || this.confirming || this.showWinner) {
       return
     }
-    this.pushHistory()
-    this.scoreA = 0
-    this.scoreB = 0
-    this.server = "A"
+    this.confirming = true
+  },
+
+  onCancelReset() {
+    this.confirming = false
+  },
+
+  onConfirmReset() {
+    this.resetGame()
+    this.confirming = false
+  },
+
+  onNewGame() {
+    this.resetGame()
+  },
+
+  onDismissWinner() {
+    // Hide the overlay so the board is reachable to undo/edit a mis-score.
+    this.winnerDismissed = true
   },
 
   onEditA() {
@@ -282,6 +338,8 @@ export default {
 
   onDone() {
     this.editing = ""
+    // Re-show the winner overlay if the edited score is now a win.
+    this.winnerDismissed = false
   }
 }
 </script>
@@ -290,33 +348,33 @@ export default {
 .page {
   flex: 1;
   flex-direction: column;
-  width: 100%;
-  height: 100%;
-  background-color: #000000;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  height: 100%;
+  background-color: #000;
 }
 
 .board {
   flex: 1;
-  width: 100%;
   flex-direction: column;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
   padding-top: 36px;
   padding-bottom: 6px;
 }
 
 .zone {
-  width: 100%;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  width: 100%;
 }
 
 .score {
   font-size: 150px;
-  line-height: 150px;
   font-weight: bold;
+  line-height: 150px;
   text-align: center;
 }
 
@@ -329,6 +387,7 @@ export default {
 }
 
 /* Middle serve / court indicator */
+
 /* Badminton court diagram */
 .court {
   flex-direction: column;
@@ -341,27 +400,26 @@ export default {
   flex-direction: row;
   width: 100%;
   height: 40px;
-  border-width: 2px;
-  border-color: #5a5a5a;
   background-color: #0a0a0a;
+  border-color: #5a5a5a;
+  border-width: 2px;
 }
 
 .cell {
   flex: 1;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
 }
 
 .cellLeft {
-  border-right-width: 2px;
   border-right-color: #5a5a5a;
+  border-right-width: 2px;
 }
 
 .cellRight {
-  border-left-width: 2px;
   border-left-color: #5a5a5a;
+  border-left-width: 2px;
 }
-
 
 .sa {
   background-color: #0f1a22;
@@ -392,34 +450,34 @@ export default {
 .ring {
   width: 16px;
   height: 16px;
-  border-radius: 8px;
-  border-width: 2px;
+  background-color: #0000;
   border-color: #e0b23c;
-  background-color: #00000000;
+  border-width: 2px;
+  border-radius: 8px;
 }
 
 .net {
+  align-items: center;
+  justify-content: center;
   width: 100%;
   height: 30px;
-  justify-content: center;
-  align-items: center;
 }
 
 .netTime {
   font-size: 28px;
-  color: #cccccc;
+  color: #ccc;
 }
 
 .hint {
+  align-items: center;
+  justify-content: center;
   width: 100%;
   height: 30px;
-  justify-content: center;
-  align-items: center;
 }
 
 .hintText {
   font-size: 13px;
-  color: #555555;
+  color: #555;
   text-align: center;
 }
 
@@ -437,22 +495,22 @@ export default {
 
 .cWhite {
   font-size: 15px;
-  color: #ffffff;
+  color: #fff;
 }
 
 /* Edit overlay */
 .overlay {
-  width: 100%;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-color: #000000;
+  width: 100%;
+  background-color: #000;
 }
 
 .ovTitle {
-  font-size: 26px;
-  color: #ffffff;
   margin-bottom: 24px;
+  font-size: 26px;
+  color: #fff;
 }
 
 .ovRow {
@@ -465,9 +523,9 @@ export default {
   width: 60px;
   height: 60px;
   font-size: 40px;
-  color: #ffffff;
+  color: #fff;
   text-align: center;
-  background-color: #222222;
+  background-color: #222;
   border-radius: 30px;
 }
 
@@ -475,18 +533,72 @@ export default {
   width: 90px;
   font-size: 56px;
   font-weight: bold;
-  color: #ffffff;
+  color: #fff;
   text-align: center;
 }
 
 .ovDone {
-  margin-top: 30px;
   width: 140px;
   height: 46px;
+  margin-top: 30px;
   font-size: 22px;
-  color: #000000;
+  color: #000;
+  text-align: center;
   background-color: #2ea6dc;
   border-radius: 23px;
+}
+
+/* Reset-confirm overlay */
+.ovSub {
+  margin-bottom: 30px;
+  font-size: 40px;
+  font-weight: bold;
+  color: #fff;
+  text-align: center;
+}
+
+.ovCancel {
+  width: 110px;
+  height: 46px;
+  margin-right: 12px;
+  font-size: 20px;
+  color: #fff;
+  text-align: center;
+  background-color: #222;
+  border-radius: 23px;
+}
+
+.ovDanger {
+  width: 110px;
+  height: 46px;
+  margin-left: 12px;
+  font-size: 20px;
+  color: #fff;
+  text-align: center;
+  background-color: #c02828;
+  border-radius: 23px;
+}
+
+/* Winner overlay */
+.winTitle {
+  margin-bottom: 10px;
+  font-size: 34px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.winScore {
+  margin-bottom: 10px;
+  font-size: 64px;
+  font-weight: bold;
+  color: #fff;
+  text-align: center;
+}
+
+.winBack {
+  margin-top: 22px;
+  font-size: 16px;
+  color: #666;
   text-align: center;
 }
 </style>
