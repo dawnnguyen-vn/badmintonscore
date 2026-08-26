@@ -1,0 +1,8 @@
+node_modules
+dist
+build
+sign
+coverage
+.nyc_output
+package-lock.json
+*.rpk

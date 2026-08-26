@@ -14,9 +14,6 @@
 /.nyc_output
 /coverage
 
-# tooling
-.husky/
-
 # logs
 *.log
 npm-debug.log*
