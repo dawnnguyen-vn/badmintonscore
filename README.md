@@ -100,8 +100,10 @@ npm install
 npm run start   # build + deploy to a running emulator, with hot reload
 ```
 
-`npm run start` prompts for an AVD and deploys over `adb`, so `adb` must be on your
-`PATH` and a Vela emulator (e.g. `xiaomi_band_10`) must be running.
+`npm run start` prompts for an AVD and deploys over `adb`, so a Vela emulator
+(e.g. `xiaomi_band_10`) must be running. `adb` does not have to be on your
+`PATH` — the toolkit bundles its own binary and only prefers a `PATH` one if it
+works; `NODE_ADB_BIN_PATH` overrides both.
 
 ## Build
 
@@ -110,4 +112,20 @@ npm run build     # signed debug .rpk -> ./dist
 npm run release   # production .rpk (requires signing certs in ./sign)
 ```
 
-The generated `.rpk` can be installed on the emulator or a real device.
+The generated `.rpk` can be installed on the emulator, or on a real band.
+
+## Installing on a real band
+
+The band only takes an app over Bluetooth from a paired phone, and there is no
+Linux-side installer. [`tools/miband-bridge/`](tools/miband-bridge/) sets up an
+Android emulator with **real Bluetooth**, bridged to the machine's own adapter,
+so a phone is not needed — see its README for the recipe and the two `bumble`
+patches it depends on.
+
+```bash
+tools/miband-bridge/setup.sh     # once per machine
+tools/miband-bridge/bt-release.sh
+tools/miband-bridge/bridge.sh    # own terminal
+tools/miband-bridge/emu.sh       # own terminal
+tools/miband-bridge/push-rpk.sh  # drops the newest .rpk into the emulator
+```
