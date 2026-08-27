@@ -7,6 +7,7 @@ import globals from "globals"
 const quickAppGlobals = {
   ...globals.browser,
   $app: "readonly",
+  global: "readonly", // runtime global, carries runGC()
   App: "readonly",
   Page: "readonly",
   Card: "readonly",

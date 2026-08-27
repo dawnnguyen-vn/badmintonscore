@@ -1,87 +1,126 @@
 <template>
-  <!-- Full-screen scoreboard. Gestures are bound to the root. -->
-  <div class="page" onswipe="onSwipe" onlongpress="onRestart">
-    <div class="board" if="{{ !editing && !confirming && !showWinner }}">
+  <!-- Full-screen scoreboard. Swipes are bound to the root; double taps are
+       per-area (score zone = edit that score, court band = menu). Nothing
+       binds `longpress`, so the system's own long-press panel (the one with
+       the app's remove button) still comes up on the watch. -->
+  <div class="page" onswipe="onSwipe">
+    <div class="board" if="{{ !editing && !confirming && !menu && !showWinner }}">
       <!-- Player B (top, orange) -->
-      <div class="zone zoneB">
-        <text class="score scoreB" onclick="onEditB">{{ scoreB }}</text>
+      <div class="zone zoneB" onclick="onTapB">
+        <text class="score scoreB">{{ scoreB }}</text>
       </div>
 
-      <!-- Badminton court: dot = server's service court, ring = receiver's -->
-      <div class="court">
-        <div class="courtRow">
-          <div class="cell cellLeft {{ courtDots.TL }}">
-            <div class="dot dotA" if="{{ courtDots.TL === 'sa' }}"></div>
-            <div class="dot dotB" if="{{ courtDots.TL === 'sb' }}"></div>
-            <div class="ring" if="{{ courtDots.TL === 'r' }}"></div>
+      <!-- Double-tapping the band between the two scores opens the menu; the
+           court diagram inside it shows the serve situation: dot = server's
+           service court, ring = receiver's. -->
+      <div class="mid" onclick="onTapMid">
+        <div class="court">
+          <div class="courtRow">
+            <div class="cell cellLeft {{ courtDots.TL }}">
+              <div class="dot dotA" if="{{ courtDots.TL === 'sa' }}"></div>
+              <div class="dot dotB" if="{{ courtDots.TL === 'sb' }}"></div>
+              <div class="ring" if="{{ courtDots.TL === 'r' }}"></div>
+            </div>
+            <div class="cell cellRight {{ courtDots.TR }}">
+              <div class="dot dotA" if="{{ courtDots.TR === 'sa' }}"></div>
+              <div class="dot dotB" if="{{ courtDots.TR === 'sb' }}"></div>
+              <div class="ring" if="{{ courtDots.TR === 'r' }}"></div>
+            </div>
           </div>
-          <div class="cell cellRight {{ courtDots.TR }}">
-            <div class="dot dotA" if="{{ courtDots.TR === 'sa' }}"></div>
-            <div class="dot dotB" if="{{ courtDots.TR === 'sb' }}"></div>
-            <div class="ring" if="{{ courtDots.TR === 'r' }}"></div>
+          <div class="net">
+            <text class="netTime">{{ time }}</text>
           </div>
-        </div>
-        <div class="net">
-          <text class="netTime">{{ time }}</text>
-        </div>
-        <div class="courtRow">
-          <div class="cell cellLeft {{ courtDots.BL }}">
-            <div class="dot dotA" if="{{ courtDots.BL === 'sa' }}"></div>
-            <div class="dot dotB" if="{{ courtDots.BL === 'sb' }}"></div>
-            <div class="ring" if="{{ courtDots.BL === 'r' }}"></div>
-          </div>
-          <div class="cell cellRight {{ courtDots.BR }}">
-            <div class="dot dotA" if="{{ courtDots.BR === 'sa' }}"></div>
-            <div class="dot dotB" if="{{ courtDots.BR === 'sb' }}"></div>
-            <div class="ring" if="{{ courtDots.BR === 'r' }}"></div>
+          <div class="courtRow">
+            <div class="cell cellLeft {{ courtDots.BL }}">
+              <div class="dot dotA" if="{{ courtDots.BL === 'sa' }}"></div>
+              <div class="dot dotB" if="{{ courtDots.BL === 'sb' }}"></div>
+              <div class="ring" if="{{ courtDots.BL === 'r' }}"></div>
+            </div>
+            <div class="cell cellRight {{ courtDots.BR }}">
+              <div class="dot dotA" if="{{ courtDots.BR === 'sa' }}"></div>
+              <div class="dot dotB" if="{{ courtDots.BR === 'sb' }}"></div>
+              <div class="ring" if="{{ courtDots.BR === 'r' }}"></div>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- Player A (bottom, blue) -->
-      <div class="zone zoneA">
-        <text class="score scoreA" onclick="onEditA">{{ scoreA }}</text>
+      <div class="zone zoneA" onclick="onTapA">
+        <text class="score scoreA">{{ scoreA }}</text>
       </div>
     </div>
 
-    <!-- Hint strip (doubles as game-point / winner status line) -->
-    <div class="hint" if="{{ !editing && !confirming && !showWinner }}">
+    <!-- Status line (empty unless it is game point) -->
+    <div class="hint" if="{{ !editing && !confirming && !menu && !showWinner }}">
       <text class="hintText {{ statusClass }}" if="{{ gamePoint }}">{{ statusText }}</text>
-      <text class="hintText" if="{{ !gamePoint }}">up B+ · down A+ · left undo · hold reset</text>
     </div>
 
     <!-- Edit overlay -->
     <div class="overlay" if="{{ editing }}">
-      <text class="ovTitle">Edit {{ editing }}</text>
-      <div class="ovRow">
-        <text class="ovBtn" onclick="onDec">-</text>
-        <text class="ovVal">{{ editing === "A" ? scoreA : scoreB }}</text>
-        <text class="ovBtn" onclick="onInc">+</text>
+      <div class="ovMain">
+        <text class="ovTitle">Edit {{ editing }}</text>
+        <div class="ovRow">
+          <text class="ovBtn" onclick="onDec">-</text>
+          <text class="ovVal">{{ editing === "A" ? scoreA : scoreB }}</text>
+          <text class="ovBtn" onclick="onInc">+</text>
+        </div>
       </div>
-      <text class="ovDone" onclick="onDone">Done</text>
+      <text class="ovDone ovDoneBottom" onclick="onDone">Done</text>
+    </div>
+
+    <!-- Action menu (double tap the court band) -->
+    <div class="overlay" if="{{ menu }}">
+      <div class="ovMain">
+        <text class="ovTitle">Menu</text>
+        <text class="menuBtn" onclick="onMenuReset">Reset game</text>
+        <text class="menuBtn menuExit" onclick="onMenuExit">Exit app</text>
+      </div>
+      <text class="winBack" onclick="onCloseMenu">cancel</text>
     </div>
 
     <!-- Reset confirm overlay -->
     <div class="overlay" if="{{ confirming }}">
-      <text class="ovTitle">Reset game?</text>
-      <text class="ovSub">{{ scoreB }} - {{ scoreA }}</text>
-      <div class="ovRow">
-        <text class="ovCancel" onclick="onCancelReset">Cancel</text>
+      <div class="ovMain">
+        <text class="ovTitle">Reset game?</text>
+        <text class="ovSub">{{ scoreB }} - {{ scoreA }}</text>
         <text class="ovDanger" onclick="onConfirmReset">Reset</text>
       </div>
+      <text class="winBack" onclick="onCancelReset">cancel</text>
     </div>
 
     <!-- Winner overlay -->
     <div class="overlay" if="{{ showWinner }}">
-      <text class="winTitle {{ statusClass }}">★ {{ winner }} WINS</text>
-      <text class="winScore">{{ winScore }}</text>
-      <text class="ovDone" onclick="onNewGame">New Game</text>
+      <div class="ovMain">
+        <text class="winTitle {{ statusClass }}">★ {{ winner }} WINS</text>
+        <text class="winScore">{{ winScore }}</text>
+        <text class="ovDone ovDoneSpaced" onclick="onNewGame">New Game</text>
+      </div>
       <text class="winBack" onclick="onDismissWinner">back</text>
     </div>
   </div>
 </template>
 
 <script>
+import app from "@system.app"
+import router from "@system.router"
+import storage from "@system.storage"
+
+// Module scope, not viewModel data: constants and helpers here cost one
+// allocation for the life of the app, while anything on `private` gets a
+// change observer and anything built inside a method is re-allocated on every
+// call. See the memory checklist in the README.
+const SAVE_KEY = "game" // storage key, holds "scoreA,scoreB,server"
+const HISTORY_MAX = 40 // undo depth; keeps a long match from growing forever
+const DOUBLE_TAP_MS = 350 // two taps on one zone this close count as a double
+const BACK_GUARD_MS = 700 // one physical swipe can reach us twice, see onSwipe
+// Service court diagonally opposite each service court.
+const DIAG = {TL: "BR", BR: "TL", TR: "BL", BL: "TR"}
+
+function onStorageFail(data, code) {
+  console.log("storage failed, code = " + code)
+}
+
 export default {
   private: {
     scoreA: 0,
@@ -89,10 +128,12 @@ export default {
     server: "A", // who serves: 'A' or 'B'
     editing: "", // '' | 'A' | 'B'
     confirming: false, // reset-confirm overlay is up
+    menu: false, // action menu (reset / exit) is up
     winnerDismissed: false, // user dismissed the winner overlay to fix a score
-    history: [],
-    time: "",
-    timer: 0
+    time: ""
+    // Non-UI state (`_history`, `_timer`, the back/tap timestamps) is kept off
+    // `private` so the framework doesn't attach change observers to it — see
+    // onInit().
   },
 
   computed: {
@@ -118,9 +159,8 @@ export default {
       } else {
         serverBox = this.scoreB % 2 === 0 ? "TL" : "TR"
       }
-      const diag = {TL: "BR", BR: "TL", TR: "BL", BL: "TR"}
       boxes[serverBox] = this.server === "A" ? "sa" : "sb"
-      boxes[diag[serverBox]] = "r"
+      boxes[DIAG[serverBox]] = "r"
       return boxes
     },
 
@@ -159,7 +199,9 @@ export default {
     // Winner overlay is up: someone has won and the user hasn't dismissed it
     // (dismissing lets them undo/edit a mis-scored final point).
     showWinner() {
-      return !!this.winner && !this.winnerDismissed && !this.editing && !this.confirming
+      return (
+        !!this.winner && !this.winnerDismissed && !this.editing && !this.confirming && !this.menu
+      )
     },
 
     // Final score, winner's points first.
@@ -196,16 +238,102 @@ export default {
     }
   },
 
+  onInit() {
+    this._history = [] // undo stack, never rendered
+    this._timer = 0 // clock interval id
+    this._lastBack = 0 // timestamp of the last handled back, see handleBack()
+    this._sysBack = false // onBackPress() has fired at least once
+    this._tapAt = 0 // first tap of a possible double tap, see doubleTap()
+    this._tapZone = "" // ...and which zone it landed on
+    this.restore()
+  },
+
   onReady() {
+    this.startClock()
+  },
+
+  // The clock only has to tick while the page is on screen.
+  onShow() {
+    this.startClock()
+  },
+
+  onHide() {
+    this.stopClock()
+  },
+
+  onDestroy() {
+    this.stopClock()
+    // One collection on the way out, never on a hot path — a frequent runGC()
+    // stutters the page.
+    if (typeof global !== "undefined" && global.runGC) {
+      global.runGC()
+    }
+  },
+
+  // The whole game state as one short string. Both the undo stack and
+  // storage use this format, so neither has to hold an object per entry.
+  encode() {
+    return this.scoreA + "," + this.scoreB + "," + this.server
+  },
+
+  // Apply a string that encode() produced. A value that isn't one leaves the
+  // board untouched.
+  decode(raw) {
+    const parts = ("" + raw).split(",")
+    if (parts.length === 3) {
+      const a = parseInt(parts[0], 10)
+      const b = parseInt(parts[1], 10)
+      // NaN fails every comparison, so a corrupt value changes nothing.
+      if (a >= 0 && a < 100 && b >= 0 && b < 100) {
+        this.scoreA = a
+        this.scoreB = b
+        this.server = parts[2] === "B" ? "B" : "A"
+      }
+    }
+    parts.length = 0 // release the parsed data as soon as it is consumed
+  },
+
+  // Reading the score back is what makes leaving cheap: swipe out by accident
+  // and the match is still there when the app reopens.
+  restore() {
+    storage.get({
+      key: SAVE_KEY,
+      default: "",
+      success: (raw) => {
+        // A point scored before the read lands wins over the stored value.
+        if (this._history.length === 0) {
+          this.decode(raw)
+        }
+      },
+      fail: onStorageFail
+    })
+  },
+
+  // Called after every score change. The value is one short string, so a write
+  // per rally is cheap; `onStorageFail` is module-level so no closure is built
+  // here either.
+  save() {
+    storage.set({
+      key: SAVE_KEY,
+      value: this.encode(),
+      fail: onStorageFail
+    })
+  },
+
+  startClock() {
     this.updateTime()
-    this.timer = setInterval(() => {
+    if (this._timer) {
+      return
+    }
+    this._timer = setInterval(() => {
       this.updateTime()
     }, 15000)
   },
 
-  onDestroy() {
-    if (this.timer) {
-      clearInterval(this.timer)
+  stopClock() {
+    if (this._timer) {
+      clearInterval(this._timer)
+      this._timer = 0
     }
   },
 
@@ -222,11 +350,11 @@ export default {
   },
 
   pushHistory() {
-    this.history.push({
-      scoreA: this.scoreA,
-      scoreB: this.scoreB,
-      server: this.server
-    })
+    // Bounded on purpose: undo past HISTORY_MAX points is not worth the memory.
+    if (this._history.length >= HISTORY_MAX) {
+      this._history.shift()
+    }
+    this._history.push(this.encode())
   },
 
   addPoint(side) {
@@ -243,18 +371,17 @@ export default {
       this.scoreB = this.scoreB + 1
       this.server = "B"
     }
+    this.save()
   },
 
   undo() {
-    if (this.history.length === 0) {
+    if (this._history.length === 0) {
       return
     }
-    const prev = this.history.pop()
-    this.scoreA = prev.scoreA
-    this.scoreB = prev.scoreB
-    this.server = prev.server
+    this.decode(this._history.pop())
     // Back in a playable state — allow the winner overlay to show again.
     this.winnerDismissed = false
+    this.save()
   },
 
   // Clear the score for a fresh game.
@@ -264,14 +391,25 @@ export default {
     this.scoreB = 0
     this.server = "A"
     this.winnerDismissed = false
+    this.save()
   },
 
   onSwipe(e) {
-    // Any overlay is up — gestures are ignored.
-    if (this.editing || this.confirming || this.showWinner) {
+    const d = e.direction
+    // Right is the system back gesture. It has to be handled here too, because
+    // on some builds the page swallows it and onBackPress() never fires. Where
+    // onBackPress() *does* fire, one physical swipe arrives twice — so once
+    // we've seen it work, right-swipes are left to it and ignored here.
+    if (d === "right") {
+      if (!this._sysBack) {
+        this.handleBack()
+      }
       return
     }
-    const d = e.direction
+    // Any overlay is up — scoring gestures are ignored.
+    if (this.editing || this.confirming || this.menu || this.showWinner) {
+      return
+    }
     if (d === "up") {
       this.addPoint("B")
     } else if (d === "down") {
@@ -281,11 +419,96 @@ export default {
     }
   },
 
-  onRestart() {
-    if (this.editing || this.confirming || this.showWinner) {
-      return
+  // Board actions are on a double tap, not a long press: `longpress` has to
+  // stay unbound so the watch's own long-press panel (with the app's remove
+  // button) still opens. Two taps on the same zone within 350ms count; a
+  // single tap does nothing, so a stray touch mid-rally is ignored.
+  doubleTap(zone) {
+    const now = Date.now()
+    if (zone === this._tapZone && now - this._tapAt < DOUBLE_TAP_MS) {
+      // Consume the pair so a third tap starts over instead of re-firing.
+      this._tapZone = ""
+      this._tapAt = 0
+      return true
     }
+    this._tapZone = zone
+    this._tapAt = now
+    return false
+  },
+
+  onTapMid() {
+    if (this.doubleTap("mid")) {
+      this.menu = true
+    }
+  },
+
+  onCloseMenu() {
+    this.menu = false
+  },
+
+  onMenuReset() {
+    this.menu = false
     this.confirming = true
+  },
+
+  onMenuExit() {
+    this.menu = false
+    this.exitApp()
+  },
+
+  // Close the app and go back to the watch. Returns true when it was handled
+  // here, false when the caller should let the system's own back run instead.
+  exitApp() {
+    try {
+      if (app && typeof app.terminate === "function") {
+        app.terminate()
+        return true
+      }
+    } catch (e) {
+      console.log("app.terminate failed: " + e)
+    }
+    // Fallback for platforms without @system.app: a single-page app closes
+    // when the entry page is popped. Report it as unhandled so a back press
+    // also falls through to the system default.
+    router.back()
+    return false
+  },
+
+  // The one place that decides what "back" does, shared by the right-swipe
+  // gesture and the system back key. Returning true means "handled, don't
+  // leave".
+  handleBack() {
+    // Belt and braces for the very first press, before _sysBack is known.
+    const now = Date.now()
+    if (now - this._lastBack < BACK_GUARD_MS) {
+      return true
+    }
+    this._lastBack = now
+    // Topmost overlay closes first.
+    if (this.editing) {
+      this.onDone()
+      return true
+    }
+    if (this.confirming) {
+      this.confirming = false
+      return true
+    }
+    if (this.menu) {
+      this.menu = false
+      return true
+    }
+    if (this.showWinner) {
+      this.winnerDismissed = true
+      return true
+    }
+    // Nothing left to close: leave. There is no "are you sure?" — the score is
+    // in storage, so coming straight back picks the match up where it was.
+    return this.exitApp()
+  },
+
+  onBackPress() {
+    this._sysBack = true
+    return this.handleBack()
   },
 
   onCancelReset() {
@@ -306,14 +529,20 @@ export default {
     this.winnerDismissed = true
   },
 
-  onEditA() {
-    this.pushHistory()
-    this.editing = "A"
+  // Double tap on a score zone. The board is only rendered with no overlay up,
+  // so no guard is needed here.
+  onTapA() {
+    if (this.doubleTap("A")) {
+      this.pushHistory()
+      this.editing = "A"
+    }
   },
 
-  onEditB() {
-    this.pushHistory()
-    this.editing = "B"
+  onTapB() {
+    if (this.doubleTap("B")) {
+      this.pushHistory()
+      this.editing = "B"
+    }
   },
 
   onInc() {
@@ -340,6 +569,7 @@ export default {
     this.editing = ""
     // Re-show the winner overlay if the edited score is now a win.
     this.winnerDismissed = false
+    this.save()
   }
 }
 </script>
@@ -389,6 +619,13 @@ export default {
 /* Middle serve / court indicator */
 
 /* Badminton court diagram */
+.mid {
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
 .court {
   flex-direction: column;
   width: 150px;
@@ -500,11 +737,24 @@ export default {
 
 /* Edit overlay */
 .overlay {
+  flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   width: 100%;
   background-color: #000;
+}
+
+/* The actions, centred in everything the escape row leaves over. Splitting the
+   overlay this way pushes `cancel` to the bottom edge instead of sitting it a
+   fixed margin below the buttons — on a 212px-wide screen that margin was
+   close enough to mis-tap. */
+.ovMain {
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
 }
 
 .ovTitle {
@@ -520,8 +770,8 @@ export default {
 }
 
 .ovBtn {
-  width: 60px;
-  height: 60px;
+  width: 56px;
+  height: 56px;
   font-size: 40px;
   color: #fff;
   text-align: center;
@@ -530,22 +780,53 @@ export default {
 }
 
 .ovVal {
-  width: 90px;
+  width: 84px;
   font-size: 56px;
   font-weight: bold;
   color: #fff;
   text-align: center;
 }
 
+/* Primary action. Same 170px as .menuBtn so every button on the watch is one
+   size and one target. Positioning is split out below. */
 .ovDone {
-  width: 140px;
+  width: 170px;
   height: 46px;
-  margin-top: 30px;
   font-size: 22px;
   color: #000;
   text-align: center;
   background-color: #2ea6dc;
   border-radius: 23px;
+}
+
+/* Inside .ovMain, below content that needs clearing. */
+.ovDoneSpaced {
+  margin-top: 24px;
+}
+
+/* Sits low but well clear of the bottom edge - 14px put it into the display's
+   curved corner region, where it was awkward to tap. Only the edit overlay
+   uses this, so raising it does not move `cancel` on the other screens. */
+.ovDoneBottom {
+  margin-bottom: 48px;
+}
+
+/* Action menu. 20px between the buttons, not 12: two 46px targets that close on
+   a 212px screen were easy to mis-tap, and pinning `cancel` to the bottom of
+   the overlay freed up the space. */
+.menuBtn {
+  width: 170px;
+  height: 46px;
+  margin-bottom: 20px;
+  font-size: 20px;
+  color: #fff;
+  text-align: center;
+  background-color: #222;
+  border-radius: 23px;
+}
+
+.menuExit {
+  color: #f26522;
 }
 
 /* Reset-confirm overlay */
@@ -557,21 +838,12 @@ export default {
   text-align: center;
 }
 
-.ovCancel {
-  width: 110px;
-  height: 46px;
-  margin-right: 12px;
-  font-size: 20px;
-  color: #fff;
-  text-align: center;
-  background-color: #222;
-  border-radius: 23px;
-}
-
+/* Destructive action, stacked rather than beside cancel: two 110px buttons
+   plus margins came to 244px, wider than the 212px screen, and it put "Reset"
+   a thumb-width from "Cancel". */
 .ovDanger {
-  width: 110px;
+  width: 170px;
   height: 46px;
-  margin-left: 12px;
   font-size: 20px;
   color: #fff;
   text-align: center;
@@ -596,7 +868,9 @@ export default {
 }
 
 .winBack {
-  margin-top: 22px;
+  /* Separation now comes from .ovMain filling the space above, so this only
+     needs to stay clear of the very bottom edge. */
+  margin-bottom: 14px;
   font-size: 16px;
   color: #666;
   text-align: center;
