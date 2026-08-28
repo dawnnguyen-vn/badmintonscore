@@ -23,8 +23,8 @@ A badminton scoreboard for the **Xiaomi Smart Band 10**, built as a Vela QuickAp
 
 | Gesture                       | Action                                   |
 | ----------------------------- | ---------------------------------------- |
-| Swipe up                      | B +1 (top player)                        |
-| Swipe down                    | A +1 (bottom player)                     |
+| Swipe up                      | B +1 (top player), with a haptic tick    |
+| Swipe down                    | A +1 (bottom player), with a haptic tick |
 | Swipe left                    | Undo last point                          |
 | Swipe right (back)            | Close the open overlay, or leave the app |
 | Double tap a score            | Edit that score (`−` / `+` / Done)       |
@@ -41,6 +41,19 @@ These were a long press until it turned out that nothing in the app may bind
 system panel holding the app's **remove** button, and binding it here swallows
 it. `doubleTap()` in the page counts two taps on the same zone inside 350 ms —
 the framework has no `doubleclick` event of its own.
+
+### Haptics
+
+Scoring a point buzzes the watch — `@system.vibrator` in `'short'` mode, the
+~35 ms tick, not the ~400 ms `'long'` one that reads as an alarm on the wrist
+forty times a game. The swipe is a blind gesture: the band is on an arm that is
+mid-rally and usually not being looked at, so the buzz is the confirmation that
+the point registered. Nothing else vibrates — undo, the overlays and a swipe
+after the game is won all stay silent, which is what tells them apart from a
+point going on.
+
+`system.vibrator` is declared in the manifest but the call is guarded, so a
+build or device without the feature still scores normally.
 
 ### Leaving the app
 

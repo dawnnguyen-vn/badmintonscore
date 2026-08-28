@@ -105,6 +105,7 @@
 import app from "@system.app"
 import router from "@system.router"
 import storage from "@system.storage"
+import vibrator from "@system.vibrator"
 
 // Module scope, not viewModel data: constants and helpers here cost one
 // allocation for the life of the app, while anything on `private` gets a
@@ -116,9 +117,27 @@ const DOUBLE_TAP_MS = 350 // two taps on one zone this close count as a double
 const BACK_GUARD_MS = 700 // one physical swipe can reach us twice, see onSwipe
 // Service court diagonally opposite each service court.
 const DIAG = {TL: "BR", BR: "TL", TR: "BL", BL: "TR"}
+// One shared options object for the point buzz, so scoring a rally doesn't
+// allocate. 'short' is the ~35ms tick; 'long' (~400ms) reads as an alarm on
+// the wrist and is too much for something that happens 40 times a game.
+const BUZZ = {mode: "short"}
 
 function onStorageFail(data, code) {
   console.log("storage failed, code = " + code)
+}
+
+// Haptic confirmation that a swipe landed. The gesture is blind — the watch is
+// on a wrist that's mid-rally and often not being looked at — so the buzz is
+// what tells you the point registered. Guarded because @system.vibrator is an
+// optional feature: a build without it must still score.
+function buzz() {
+  try {
+    if (vibrator && typeof vibrator.vibrate === "function") {
+      vibrator.vibrate(BUZZ)
+    }
+  } catch (e) {
+    console.log("vibrate failed: " + e)
+  }
 }
 
 export default {
@@ -359,9 +378,11 @@ export default {
 
   addPoint(side) {
     // Game's over — swipes no longer add points (undo/reset/edit still work).
+    // No buzz either: nothing changed, and a silent swipe is the signal.
     if (this.winner) {
       return
     }
+    buzz()
     this.pushHistory()
     // Winner of the rally becomes the server.
     if (side === "A") {
